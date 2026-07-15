@@ -1,0 +1,33 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Root & Workspaces Dependencies
+        run: npm ci
+
+      - name: Run Build (Shared, Backend, Frontend)
+        run: npm run build
+
+      - name: Run Global Linter
+        run: npm run lint
+
+      - name: Check Types (TypeScript validation)
+        run: npm run typecheck

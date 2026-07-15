@@ -1,0 +1,360 @@
+openapi: 3.0.0
+info:
+  title: Healthcare Appointment & Follow-up Manager - Doctor Module API
+  version: 1.0.0
+  description: OpenAPI specification for the Doctor Management services.
+paths:
+  /api/v1/doctors:
+    get:
+      summary: Search and list doctors
+      tags:
+        - Doctors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: specialty
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter doctors by specialty
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by doctor first name or last name
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Max records to return per page
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [name, rating, specialty]
+            default: name
+          description: Field to sort by
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Order of sorting
+      responses:
+        '200':
+          description: A list of doctor profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      doctors:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Doctor'
+                      total:
+                        type: integer
+                        example: 12
+                      page:
+                        type: integer
+                        example: 1
+                      totalPages:
+                        type: integer
+                        example: 1
+
+  /api/v1/doctors/{id}:
+    get:
+      summary: Get doctor public profile
+      tags:
+        - Doctors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Doctor UUID
+      responses:
+        '200':
+          description: Doctor details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Doctor'
+        '404':
+          description: Doctor not found
+
+  /api/v1/doctors/{id}/slots:
+    get:
+      summary: Get available appointment slots
+      tags:
+        - Doctors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Doctor UUID
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Target date formatted as YYYY-MM-DD
+      responses:
+        '200':
+          description: List of time slots with availability state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      doctorId:
+                        type: string
+                        example: doc-uuid-1234
+                      date:
+                        type: string
+                        example: 2026-07-20
+                      slots:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            start:
+                              type: string
+                              format: date-time
+                              example: "2026-07-20T09:00:00.000Z"
+                            end:
+                              type: string
+                              format: date-time
+                              example: "2026-07-20T09:30:00.000Z"
+                            available:
+                              type: boolean
+                              example: true
+
+  /api/v1/doctors/me/working-hours:
+    put:
+      summary: Update doctor working hours
+      tags:
+        - Doctors
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetWorkingHoursInput'
+      responses:
+        '200':
+          description: Working hours updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Working hours updated.
+
+  /api/v1/doctors/me/leaves:
+    post:
+      summary: Request doctor leave
+      tags:
+        - Doctors
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestLeaveInput'
+      responses:
+        '202':
+          description: Leave request submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Leave'
+
+  /api/v1/doctors/leaves/{leaveId}/approve:
+    post:
+      summary: Approve leave request and cancel affected appointments (Admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: leaveId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Leave Request UUID
+      responses:
+        '200':
+          description: Leave approved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Leave approved and affected appointments cancelled.
+                  data:
+                    type: object
+                    properties:
+                      leave:
+                        $ref: '#/components/schemas/Leave'
+                      cancelledAppointments:
+                        type: integer
+                        example: 3
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Doctor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        specialty:
+          type: string
+        licenseNumber:
+          type: string
+        bio:
+          type: string
+        rating:
+          type: number
+        reviewCount:
+          type: integer
+        slotDurationMinutes:
+          type: integer
+          default: 30
+
+    Leave:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+
+    SetWorkingHoursInput:
+      type: object
+      required:
+        - dayOfWeek
+        - startTime
+        - endTime
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: "0=Sunday, 6=Saturday"
+        startTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "09:00"
+        endTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "17:00"
+        slotDurationMinutes:
+          type: integer
+          default: 30
+
+    RequestLeaveInput:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        reason:
+          type: string
